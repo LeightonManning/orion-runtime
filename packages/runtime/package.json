@@ -1,0 +1,14 @@
+{
+  "name": "@orion/runtime",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "redis": "^4.6.13",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
+  }
+}

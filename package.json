@@ -1,0 +1,24 @@
+{
+  "name": "orion",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "packages/agents/*"
+  ],
+  "scripts": {
+    "agents": "concurrently -k -n plan,work,crit -c auto \"npm -w packages/agents/planner run start\" \"npm -w packages/agents/worker run start\" \"npm -w packages/agents/critic run start\"",
+    "run": "npm -w packages/runtime run start -- --goal",
+    "dev": "concurrently -k --success=first -n coord,plan,work,crit -c auto \"npm -w packages/runtime run start -- --goal Draft a scalable webhook ingestion on GCP\" \"npm -w packages/agents/planner run start\" \"npm -w packages/agents/worker run start\" \"npm -w packages/agents/critic run start\"",
+    "build": "npm -ws run build",
+    "lint": "eslint .",
+    "test": "node -e \"console.log('TODO')\""
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/uuid": "^10.0.0",
+    "concurrently": "^9.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3"
+  }
+}
