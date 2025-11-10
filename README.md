@@ -16,10 +16,11 @@ It’s designed to be *simple, transparent, and extensible* — perfect for expe
 - 🔁 **Redis Pub/Sub bus** — real-time message passing between agents  
 - 🧠 **Shared memory** — Redis hash per task (plan, artifact, etc.)  
 - ⏳ **Ready handshake** — agents announce readiness before task start  
-- 🪵 **Structured logs (coming soon)** — JSONL task logs and summaries  
+- 🪵 **Structured logs** — JSONL task logs and summaries  
 - 🤖 **LLM-agnostic design** — supports OpenAI, Anthropic, or local models  
 - 🧩 **Composable roles** — planner, worker, critic, or your own custom agents  
 - 🔒 **Privacy-first architecture** — in-environment processing and PII control  
+- 🧩 **Unified agent lifecycle** — via `defineAgent(name, config, onMessage)`  
 
 ---
 
@@ -33,6 +34,7 @@ It’s designed to be *simple, transparent, and extensible* — perfect for expe
 | **tsx** | Fast TypeScript execution |
 | **zod** | Schema validation for messages |
 | **uuid** | Unique IDs for tasks and messages |
+| **@orion/agent-kit** | Shared SDK (bus, schema, logger, memory, lifecycle) |
 
 ---
 
@@ -73,27 +75,30 @@ You should see output similar to:
 ```
 orion/
  ├─ infra/
- │   └─ docker-compose.yml   # Redis
+ │   └─ docker-compose.yml       # Redis
  ├─ packages/
- │   ├─ runtime/             # Coordinator (core bus + schema)
- │   └─ agents/
- │       ├─ planner/
- │       ├─ worker/
- │       └─ critic/
+ │   ├─ runtime/                 # Coordinator (task orchestration)
+ │   ├─ agent-kit/               # Shared SDK (bus, schema, logger, memory, defineAgent)
+ │   └─ agents/                  # Example agents
+ │       ├─ planner/             # Uses defineAgent<ControlMsg, PlannerConfig>
+ │       ├─ worker/              # Uses defineAgent<PlanMsg>
+ │       └─ critic/              # Uses defineAgent<WorkMsg>
+ ├─ logs/                            # Global + per-task JSONL logs
  ├─ .env
  ├─ package.json
  └─ tsconfig.json
 ```
 
-Each agent:
-- Subscribes to the Redis `orion:bus` channel  
-- Reacts to specific message types (`control`, `plan`, `work`, `critique`)  
-- Reads/writes to shared memory (`orion:memory:<taskId>`)
-
-The coordinator:
-- Waits for all agents to announce readiness  
-- Sends a `control:start` message with a goal  
-- Monitors the workflow until completion (`control:done`)
+**Highlights:**
+- All agents are now built via `defineAgent` from `@orion/agent-kit`.
+- Planner includes a typed `PlannerConfig` (`model`, `maxSteps`) as an example of per-agent configuration.
+- Worker and Critic use the same shared lifecycle but remain simple.
+- `@orion/agent-kit` provides:
+  - **`core.ts`** – message schema, Redis bus, message builder  
+  - **`memory.ts`** – task memory helpers  
+  - **`logger.ts`** – structured JSONL logging  
+  - **`agent.ts`** – the `defineAgent` lifecycle helper  
+  - **`index.ts`** – central exports for convenience
 
 ---
 
@@ -116,9 +121,11 @@ These principles make Orion efficient, scalable, and LLM-agnostic — the runtim
 
 ---
 
-## 🦯 Roadmap
+## 🚗 Roadmap
 
 - [x] Create `@orion/agent-kit` shared library (bus, schema, memory, logger)
+- [x] Add `defineAgent` helper for unified lifecycle
+- [x] Typed per-agent config (`PlannerConfig` example)
 - [x] Structured JSONL logging (`logs/<taskId>.jsonl`)
 - [ ] Add CLI flags (`--goal`, `--max-turns`, `--topic`)
 - [ ] Replace mock LLMs with real model wrapper (`MOCK_LLM=true` fallback)
@@ -148,6 +155,20 @@ Orion reads a few environment variables:
 - `ORION_LOG_LEVEL` – `debug` | `info` | `warn` | `error` (default: `info`)
 
 You can provide these via your shell, Docker, or a local `.env` file (loaded with `dotenv`).
+
+---
+
+## 🧱 Current Foundation
+
+Orion now provides a stable foundation for multi-agent development:
+
+- **Core runtime (`@orion/runtime`)** – task orchestration and goal lifecycle  
+- **Agent SDK (`@orion/agent-kit`)** – shared tools, schema, and lifecycle helper  
+- **Typed configuration** – example: `PlannerConfig` for model parameters  
+- **Structured logs** – consistent JSONL across agents  
+- **Ready for LLM integration** – mock functions can be swapped for real clients via an upcoming `llm.ts` layer
+
+This foundation enables adding new roles or model integrations without modifying the core runtime.
 
 ---
 
