@@ -3,6 +3,8 @@ import { createClient } from "redis";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
+export * from "./memory.js";
+
 /**
  * Canonical Orion message schema for the current runtime.
  * We can evolve this later (split control/plan/work/etc into sub-schemas),

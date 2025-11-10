@@ -1,6 +1,5 @@
 // packages/agents/planner/src/index.ts
-import { initBus, MsgSchema, buildMsg } from "@orion/agent-kit";
-import { memSet } from "./memory.js";
+import { initBus, MsgSchema, buildMsg, memSet} from "@orion/agent-kit";
 
 async function mockLLMPlanner(goal: string) {
   return `{"plan":["Define requirements","Choose services","Design data flow","Outline scaling","List risks"]}`;

@@ -1,6 +1,5 @@
 // packages/agents/critic/src/index.ts
-import { initBus, MsgSchema, buildMsg } from "@orion/agent-kit";
-import { memGet } from "./memory.js";
+import { initBus, MsgSchema, buildMsg, memGet} from "@orion/agent-kit";
 
 async function mockLLMCritic(artifact: string) {
   const needsRevision = /stub/i.test(artifact);

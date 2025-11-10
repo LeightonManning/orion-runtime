@@ -1,6 +1,5 @@
 // packages/agents/worker/src/index.ts
-import { initBus, MsgSchema, buildMsg } from "@orion/agent-kit";
-import { memGet, memSet } from "./memory.js";
+import { initBus, MsgSchema, buildMsg, memGet, memSet } from "@orion/agent-kit";
 
 async function mockLLMWorker(input: string) {
   return `Artifact: Drafted section for "${input.slice(
