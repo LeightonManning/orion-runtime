@@ -1,10 +1,9 @@
 import "dotenv/config";
 import {
-  initBus,
-  MsgSchema,
+  defineAgent,
   buildMsg,
   memGet,
-  createLogger
+  type Msg
 } from "@orion/agent-kit";
 
 async function mockLLMCritic(artifact: string) {
@@ -14,72 +13,45 @@ async function mockLLMCritic(artifact: string) {
 }
 
 const NAME = "Critic";
-const log = createLogger(NAME);
 
-async function main() {
-  const { sub, pub } = await initBus();
+const startCritic = defineAgent({
+  name: NAME,
+  // Same semantics as before: only handle work messages.
+  filter: (m: Msg) => m.type === "work",
+  onMessage: async (m, { log, publish }) => {
+    // This is effectively the old:
+    // if (m.type === "work") { ... }
+    log.info("Received work artifact", { taskId: m.taskId });
 
-  await sub.subscribe("orion:bus", async (raw: string) => {
-    try {
-      const parsed = JSON.parse(raw);
-      const result = MsgSchema.safeParse(parsed);
-      if (!result.success) {
-        log.warn("Received invalid message", {
-          data: { error: result.error.format() }
-        });
-        return;
-      }
-      const m = result.data;
+    const latest = await memGet<string>(m.taskId, "artifact");
+    const review = await mockLLMCritic(latest ?? m.content);
 
-      if (m.type === "work") {
-        log.info("Received work artifact", { taskId: m.taskId });
+    const critique = buildMsg({
+      taskId: m.taskId,
+      from: NAME,
+      type: "critique",
+      content: review
+    });
+    await publish(critique);
 
-        const latest = await memGet<string>(m.taskId, "artifact");
-        const review = await mockLLMCritic(latest ?? m.content);
+    log.info("Published critique", { taskId: m.taskId });
 
-        const critique = buildMsg({
-          taskId: m.taskId,
-          from: NAME,
-          type: "critique",
-          content: review
-        });
-        await pub.publish("orion:bus", JSON.stringify(critique));
-
-        log.info("Published critique", { taskId: m.taskId });
-
-        if (/control:done/i.test(review)) {
-          const done = buildMsg({
-            taskId: m.taskId,
-            from: NAME,
-            type: "control",
-            content: "done: artifact meets acceptance"
-          });
-          await pub.publish("orion:bus", JSON.stringify(done));
-
-          log.info("Published control:done", { taskId: m.taskId });
-        }
-      }
-    } catch (err) {
-      log.error("Failed to handle message", { error: err });
-    }
-  });
-
-  await pub.publish(
-    "orion:bus",
-    JSON.stringify(
-      buildMsg({
-        taskId: "boot",
+    if (/control:done/i.test(review)) {
+      const done = buildMsg({
+        taskId: m.taskId,
         from: NAME,
-        type: "status",
-        content: "ready"
-      })
-    )
-  );
+        type: "control",
+        content: "done: artifact meets acceptance"
+      });
+      await publish(done);
 
-  log.info("ready");
-}
+      log.info("Published control:done", { taskId: m.taskId });
+    }
+  }
+});
 
-main().catch((e) => {
-  log.error("Critic crashed", { error: e });
+startCritic().catch((e) => {
+  // eslint-disable-next-line no-console
+  console.error("Critic crashed", e);
   process.exit(1);
 });

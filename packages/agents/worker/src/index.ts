@@ -1,11 +1,10 @@
 import "dotenv/config";
 import {
-  initBus,
-  MsgSchema,
+  defineAgent,
   buildMsg,
   memGet,
   memSet,
-  createLogger
+  type Msg
 } from "@orion/agent-kit";
 
 async function mockLLMWorker(input: string) {
@@ -16,64 +15,38 @@ async function mockLLMWorker(input: string) {
 }
 
 const NAME = "Worker";
-const log = createLogger(NAME);
 
-async function main() {
-  const { sub, pub } = await initBus();
+const startWorker = defineAgent({
+  name: NAME,
+  // Same semantics as before: only handle plan messages.
+  filter: (m: Msg) => m.type === "plan",
+  onMessage: async (m, { log, publish }) => {
+    // This is effectively the old:
+    // if (m.type === "plan") { ... }
+    log.info("Received plan", { taskId: m.taskId });
 
-  await sub.subscribe("orion:bus", async (raw: string) => {
-    try {
-      const parsed = JSON.parse(raw);
-      const result = MsgSchema.safeParse(parsed);
-      if (!result.success) {
-        log.warn("Received invalid message", {
-          data: { error: result.error.format() }
-        });
-        return;
-      }
-      const m = result.data;
+    const plan = await memGet<any>(m.taskId, "plan");
+    const artifact = await mockLLMWorker(
+      `Using plan ${JSON.stringify(plan)}`
+    );
 
-      if (m.type === "plan") {
-        log.info("Received plan", { taskId: m.taskId });
+    await memSet(m.taskId, "artifact", artifact);
 
-        const plan = await memGet<any>(m.taskId, "plan");
-        const artifact = await mockLLMWorker(
-          `Using plan ${JSON.stringify(plan)}`
-        );
+    const out = buildMsg({
+      taskId: m.taskId,
+      from: NAME,
+      type: "work",
+      content: artifact
+    });
+    await publish(out);
 
-        await memSet(m.taskId, "artifact", artifact);
+    log.info("Published work artifact", { taskId: m.taskId });
+  }
+});
 
-        const out = buildMsg({
-          taskId: m.taskId,
-          from: NAME,
-          type: "work",
-          content: artifact
-        });
-        await pub.publish("orion:bus", JSON.stringify(out));
-
-        log.info("Published work artifact", { taskId: m.taskId });
-      }
-    } catch (err) {
-      log.error("Failed to handle message", { error: err });
-    }
-  });
-
-  await pub.publish(
-    "orion:bus",
-    JSON.stringify(
-      buildMsg({
-        taskId: "boot",
-        from: NAME,
-        type: "status",
-        content: "ready"
-      })
-    )
-  );
-
-  log.info("ready");
-}
-
-main().catch((e) => {
-  log.error("Worker crashed", { error: e });
+startWorker().catch((e) => {
+  // Fallback logging if something goes wrong before logger is fully wired.
+  // eslint-disable-next-line no-console
+  console.error("Worker crashed", e);
   process.exit(1);
 });
