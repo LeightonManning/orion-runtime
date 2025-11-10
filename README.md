@@ -118,7 +118,7 @@ These principles make Orion efficient, scalable, and LLM-agnostic — the runtim
 
 ## 🦯 Roadmap
 
-- [ ] Create `@orion/agent-kit` shared library (bus, schema, memory, logger)
+- [x] Create @orion/agent-kit shared library (bus, schema, memory)
 - [ ] Structured JSONL logging (`logs/<taskId>.jsonl`)
 - [ ] Add CLI flags (`--goal`, `--max-turns`, `--topic`)
 - [ ] Replace mock LLMs with real model wrapper (`MOCK_LLM=true` fallback)
