@@ -3,7 +3,9 @@ import {
   defineAgent,
   buildMsg,
   memSet,
-  type Msg
+  type Msg,
+  type ControlMsg,
+  isControlMsg
 } from "@orion/agent-kit";
 
 async function mockLLMPlanner(goal: string) {
@@ -12,12 +14,12 @@ async function mockLLMPlanner(goal: string) {
 
 const NAME = "Planner";
 
-const startPlanner = defineAgent({
+const startPlanner = defineAgent<ControlMsg>({
   name: NAME,
-  // Same filter semantics as before: only care about control messages.
-  filter: (m: Msg) => m.type === "control",
+  // Use the shared type guard so `msg` is ControlMsg in onMessage
+  filter: isControlMsg,
   onMessage: async (m, { log, publish }) => {
-    // Preserve your existing start: check
+    // m.type is now known as "control"
     if (typeof m.content !== "string" || !m.content.startsWith("start:")) {
       return;
     }

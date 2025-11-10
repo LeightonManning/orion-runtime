@@ -3,7 +3,8 @@ import {
   defineAgent,
   buildMsg,
   memGet,
-  type Msg
+  type WorkMsg,
+  isWorkMsg
 } from "@orion/agent-kit";
 
 async function mockLLMCritic(artifact: string) {
@@ -14,13 +15,11 @@ async function mockLLMCritic(artifact: string) {
 
 const NAME = "Critic";
 
-const startCritic = defineAgent({
+const startCritic = defineAgent<WorkMsg>({
   name: NAME,
-  // Same semantics as before: only handle work messages.
-  filter: (m: Msg) => m.type === "work",
+  filter: isWorkMsg,
   onMessage: async (m, { log, publish }) => {
-    // This is effectively the old:
-    // if (m.type === "work") { ... }
+    // m.type is "work"
     log.info("Received work artifact", { taskId: m.taskId });
 
     const latest = await memGet<string>(m.taskId, "artifact");

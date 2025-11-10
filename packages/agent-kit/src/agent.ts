@@ -12,19 +12,20 @@ export interface AgentContext {
   publish: (msg: Msg) => Promise<void>;
 }
 
-export interface DefineAgentOptions {
+// ⬇️ Note the `<M extends Msg = Msg>` and the `filter` type-guard
+export interface DefineAgentOptions<M extends Msg = Msg> {
   name: string;
   /**
-   * Optional cheap filter so the agent only sees messages it cares about.
-   * If omitted, all valid messages are passed to `onMessage`.
+   * Optional filter so the agent only sees messages it cares about.
+   * If provided, it SHOULD be a type guard (msg is M) so `msg` is narrowed.
    */
-  filter?: (msg: Msg) => boolean;
+  filter?: (msg: Msg) => msg is M;
   /**
    * Main handler for messages this agent handles.
-   * - `msg` is already JSON-parsed and validated against MsgSchema.
-   * - Use `ctx.log` and `ctx.publish` instead of wiring Redis yourself.
+   * - `msg` is already JSON-parsed and validated.
+   * - If `filter` was provided as a type guard, `msg` will be narrowed to M.
    */
-  onMessage: (msg: Msg, ctx: AgentContext) => Promise<void> | void;
+  onMessage: (msg: M, ctx: AgentContext) => Promise<void> | void;
 }
 
 /** Returned from defineAgent – call this from the agent entrypoint. */
@@ -37,7 +38,9 @@ export type StartAgent = () => Promise<void>;
  * - ready handshake
  * - per-agent logging
  */
-export function defineAgent(options: DefineAgentOptions): StartAgent {
+export function defineAgent<M extends Msg = Msg>(
+  options: DefineAgentOptions<M>
+): StartAgent {
   const { name, filter, onMessage } = options;
   const log = createLogger(name);
 
@@ -62,7 +65,8 @@ export function defineAgent(options: DefineAgentOptions): StartAgent {
           return;
         }
 
-        await onMessage(m, {
+        // Here, if filter is a proper type guard, `m` is of type M
+        await onMessage(m as M, {
           name,
           log,
           publish: async (outgoing: Msg) => {
@@ -74,7 +78,7 @@ export function defineAgent(options: DefineAgentOptions): StartAgent {
       }
     });
 
-    // Ready handshake – identical to the existing agents.
+    // Ready handshake – identical to before.
     await pub.publish(
       "orion:bus",
       JSON.stringify(

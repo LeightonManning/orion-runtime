@@ -4,7 +4,8 @@ import {
   buildMsg,
   memGet,
   memSet,
-  type Msg
+  type PlanMsg,
+  isPlanMsg
 } from "@orion/agent-kit";
 
 async function mockLLMWorker(input: string) {
@@ -16,13 +17,11 @@ async function mockLLMWorker(input: string) {
 
 const NAME = "Worker";
 
-const startWorker = defineAgent({
+const startWorker = defineAgent<PlanMsg>({
   name: NAME,
-  // Same semantics as before: only handle plan messages.
-  filter: (m: Msg) => m.type === "plan",
+  filter: isPlanMsg,
   onMessage: async (m, { log, publish }) => {
-    // This is effectively the old:
-    // if (m.type === "plan") { ... }
+    // m.type is "plan" here
     log.info("Received plan", { taskId: m.taskId });
 
     const plan = await memGet<any>(m.taskId, "plan");
@@ -45,7 +44,6 @@ const startWorker = defineAgent({
 });
 
 startWorker().catch((e) => {
-  // Fallback logging if something goes wrong before logger is fully wired.
   // eslint-disable-next-line no-console
   console.error("Worker crashed", e);
   process.exit(1);

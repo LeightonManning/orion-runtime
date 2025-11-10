@@ -21,6 +21,31 @@ export const MsgSchema = z.object({
 
 export type Msg = z.infer<typeof MsgSchema>;
 
+export type ControlMsg = Msg & { type: "control" };
+export type PlanMsg = Msg & { type: "plan" };
+export type WorkMsg = Msg & { type: "work" };
+export type CritiqueMsg = Msg & { type: "critique" };
+export type StatusMsg = Msg & { type: "status" };
+export type ToolMsg = Msg & { type: "tool" };
+
+export const isControlMsg = (msg: Msg): msg is ControlMsg =>
+  msg.type === "control";
+
+export const isPlanMsg = (msg: Msg): msg is PlanMsg =>
+  msg.type === "plan";
+
+export const isWorkMsg = (msg: Msg): msg is WorkMsg =>
+  msg.type === "work";
+
+export const isCritiqueMsg = (msg: Msg): msg is CritiqueMsg =>
+  msg.type === "critique";
+
+export const isStatusMsg = (msg: Msg): msg is StatusMsg =>
+  msg.type === "status";
+
+export const isToolMsg = (msg: Msg): msg is ToolMsg =>
+  msg.type === "tool";
+
 export const nowIso = () => new Date().toISOString();
 
 export async function initBus() {
