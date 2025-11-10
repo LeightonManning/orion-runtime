@@ -1,5 +1,11 @@
-// packages/agents/critic/src/index.ts
-import { initBus, MsgSchema, buildMsg, memGet} from "@orion/agent-kit";
+import "dotenv/config";
+import {
+  initBus,
+  MsgSchema,
+  buildMsg,
+  memGet,
+  createLogger
+} from "@orion/agent-kit";
 
 async function mockLLMCritic(artifact: string) {
   const needsRevision = /stub/i.test(artifact);
@@ -8,6 +14,7 @@ async function mockLLMCritic(artifact: string) {
 }
 
 const NAME = "Critic";
+const log = createLogger(NAME);
 
 async function main() {
   const { sub, pub } = await initBus();
@@ -17,13 +24,17 @@ async function main() {
       const parsed = JSON.parse(raw);
       const result = MsgSchema.safeParse(parsed);
       if (!result.success) {
-        console.error("[Critic] invalid message", result.error.format());
+        log.warn("Received invalid message", {
+          data: { error: result.error.format() }
+        });
         return;
       }
       const m = result.data;
 
       if (m.type === "work") {
-        const latest = await memGet<string>(m.taskId, "artifact"); // demo read
+        log.info("Received work artifact", { taskId: m.taskId });
+
+        const latest = await memGet<string>(m.taskId, "artifact");
         const review = await mockLLMCritic(latest ?? m.content);
 
         const critique = buildMsg({
@@ -34,6 +45,8 @@ async function main() {
         });
         await pub.publish("orion:bus", JSON.stringify(critique));
 
+        log.info("Published critique", { taskId: m.taskId });
+
         if (/control:done/i.test(review)) {
           const done = buildMsg({
             taskId: m.taskId,
@@ -42,10 +55,12 @@ async function main() {
             content: "done: artifact meets acceptance"
           });
           await pub.publish("orion:bus", JSON.stringify(done));
+
+          log.info("Published control:done", { taskId: m.taskId });
         }
       }
     } catch (err) {
-      console.error("[Critic] failed to handle message", err);
+      log.error("Failed to handle message", { error: err });
     }
   });
 
@@ -60,10 +75,11 @@ async function main() {
       })
     )
   );
-  console.log(`[${NAME}] ready`);
+
+  log.info("ready");
 }
 
 main().catch((e) => {
-  console.error(e);
+  log.error("Critic crashed", { error: e });
   process.exit(1);
 });

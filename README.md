@@ -118,8 +118,8 @@ These principles make Orion efficient, scalable, and LLM-agnostic — the runtim
 
 ## 🦯 Roadmap
 
-- [x] Create @orion/agent-kit shared library (bus, schema, memory)
-- [ ] Structured JSONL logging (`logs/<taskId>.jsonl`)
+- [x] Create `@orion/agent-kit` shared library (bus, schema, memory, logger)
+- [x] Structured JSONL logging (`logs/<taskId>.jsonl`)
 - [ ] Add CLI flags (`--goal`, `--max-turns`, `--topic`)
 - [ ] Replace mock LLMs with real model wrapper (`MOCK_LLM=true` fallback)
 - [ ] Minimal web UI (timeline + memory viewer)
@@ -136,6 +136,18 @@ These principles make Orion efficient, scalable, and LLM-agnostic — the runtim
 3. **Worker** executes it and produces an artifact  
 4. **Critic** evaluates and finalizes the task  
 5. Result logged and saved to memory
+
+---
+
+## 🔧 Configuration
+
+Orion reads a few environment variables:
+
+- `REDIS_URL` – Redis connection string (default: `redis://127.0.0.1:6379`)
+- `ORION_LOG_DIR` – directory for log files (default: `<cwd>/logs`)
+- `ORION_LOG_LEVEL` – `debug` | `info` | `warn` | `error` (default: `info`)
+
+You can provide these via your shell, Docker, or a local `.env` file (loaded with `dotenv`).
 
 ---
 

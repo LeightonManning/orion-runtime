@@ -4,6 +4,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 
 export * from "./memory.js";
+export * from "./logger.js";
 
 /**
  * Canonical Orion message schema for the current runtime.

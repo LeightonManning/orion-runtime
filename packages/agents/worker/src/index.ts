@@ -1,5 +1,12 @@
-// packages/agents/worker/src/index.ts
-import { initBus, MsgSchema, buildMsg, memGet, memSet } from "@orion/agent-kit";
+import "dotenv/config";
+import {
+  initBus,
+  MsgSchema,
+  buildMsg,
+  memGet,
+  memSet,
+  createLogger
+} from "@orion/agent-kit";
 
 async function mockLLMWorker(input: string) {
   return `Artifact: Drafted section for "${input.slice(
@@ -9,6 +16,7 @@ async function mockLLMWorker(input: string) {
 }
 
 const NAME = "Worker";
+const log = createLogger(NAME);
 
 async function main() {
   const { sub, pub } = await initBus();
@@ -18,12 +26,16 @@ async function main() {
       const parsed = JSON.parse(raw);
       const result = MsgSchema.safeParse(parsed);
       if (!result.success) {
-        console.error("[Worker] invalid message", result.error.format());
+        log.warn("Received invalid message", {
+          data: { error: result.error.format() }
+        });
         return;
       }
       const m = result.data;
 
       if (m.type === "plan") {
+        log.info("Received plan", { taskId: m.taskId });
+
         const plan = await memGet<any>(m.taskId, "plan");
         const artifact = await mockLLMWorker(
           `Using plan ${JSON.stringify(plan)}`
@@ -38,9 +50,11 @@ async function main() {
           content: artifact
         });
         await pub.publish("orion:bus", JSON.stringify(out));
+
+        log.info("Published work artifact", { taskId: m.taskId });
       }
     } catch (err) {
-      console.error("[Worker] failed to handle message", err);
+      log.error("Failed to handle message", { error: err });
     }
   });
 
@@ -55,10 +69,11 @@ async function main() {
       })
     )
   );
-  console.log(`[${NAME}] ready`);
+
+  log.info("ready");
 }
 
 main().catch((e) => {
-  console.error(e);
+  log.error("Worker crashed", { error: e });
   process.exit(1);
 });

@@ -1,11 +1,18 @@
-// packages/agents/planner/src/index.ts
-import { initBus, MsgSchema, buildMsg, memSet} from "@orion/agent-kit";
+import "dotenv/config";
+import {
+  initBus,
+  MsgSchema,
+  buildMsg,
+  memSet,
+  createLogger
+} from "@orion/agent-kit";
 
 async function mockLLMPlanner(goal: string) {
   return `{"plan":["Define requirements","Choose services","Design data flow","Outline scaling","List risks"]}`;
 }
 
 const NAME = "Planner";
+const log = createLogger(NAME);
 
 async function main() {
   const { sub, pub } = await initBus();
@@ -15,14 +22,21 @@ async function main() {
       const parsed = JSON.parse(raw);
       const result = MsgSchema.safeParse(parsed);
       if (!result.success) {
-        console.error("[Planner] invalid message", result.error.format());
+        log.warn("Received invalid message", {
+          data: { error: result.error.format() }
+        });
         return;
       }
       const m = result.data;
 
       if (m.type === "control" && m.content.startsWith("start:")) {
+        log.info("Received control:start", {
+          taskId: m.taskId,
+          data: { content: m.content }
+        });
+
         const planJson = await mockLLMPlanner(m.content);
-        await memSet(m.taskId, "plan", JSON.parse(planJson)); // store the plan
+        await memSet(m.taskId, "plan", JSON.parse(planJson));
 
         const out = buildMsg({
           taskId: m.taskId,
@@ -31,9 +45,13 @@ async function main() {
           content: planJson
         });
         await pub.publish("orion:bus", JSON.stringify(out));
+
+        log.info("Published plan", {
+          taskId: m.taskId
+        });
       }
     } catch (err) {
-      console.error("[Planner] failed to handle message", err);
+      log.error("Failed to handle message", { error: err });
     }
   });
 
@@ -48,10 +66,11 @@ async function main() {
       })
     )
   );
-  console.log(`[${NAME}] ready`);
+
+  log.info("ready");
 }
 
 main().catch((e) => {
-  console.error(e);
+  log.error("Planner crashed", { error: e });
   process.exit(1);
 });

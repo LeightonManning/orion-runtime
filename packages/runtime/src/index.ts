@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+import "dotenv/config";
 import { Bus } from "./bus.js";
 import { Msg, nowIso } from "./schema.js";
 import { v4 as uuidv4 } from "uuid";
