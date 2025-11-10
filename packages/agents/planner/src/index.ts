@@ -1,4 +1,5 @@
-import { initBus, MsgSchema, buildMsg } from "./agentlib.js";
+// packages/agents/planner/src/index.ts
+import { initBus, MsgSchema, buildMsg } from "@orion/agent-kit";
 import { memSet } from "./memory.js";
 
 async function mockLLMPlanner(goal: string) {
@@ -12,18 +13,46 @@ async function main() {
 
   await sub.subscribe("orion:bus", async (raw: string) => {
     try {
-      const m = MsgSchema.parse(JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      const result = MsgSchema.safeParse(parsed);
+      if (!result.success) {
+        console.error("[Planner] invalid message", result.error.format());
+        return;
+      }
+      const m = result.data;
+
       if (m.type === "control" && m.content.startsWith("start:")) {
         const planJson = await mockLLMPlanner(m.content);
         await memSet(m.taskId, "plan", JSON.parse(planJson)); // store the plan
-        const out = buildMsg({ taskId: m.taskId, from: NAME, type: "plan", content: planJson });
+
+        const out = buildMsg({
+          taskId: m.taskId,
+          from: NAME,
+          type: "plan",
+          content: planJson
+        });
         await pub.publish("orion:bus", JSON.stringify(out));
       }
-    } catch { /* drop */ }
+    } catch (err) {
+      console.error("[Planner] failed to handle message", err);
+    }
   });
-  await pub.publish("orion:bus", JSON.stringify(
-    buildMsg({ taskId: "boot", from: NAME, type: "status", content: "ready" })
-  ));
+
+  await pub.publish(
+    "orion:bus",
+    JSON.stringify(
+      buildMsg({
+        taskId: "boot",
+        from: NAME,
+        type: "status",
+        content: "ready"
+      })
+    )
+  );
   console.log(`[${NAME}] ready`);
 }
-main().catch((e)=>{ console.error(e); process.exit(1); });
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
